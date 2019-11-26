@@ -10,12 +10,15 @@ password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
 
 for a in range(len(sys.argv)):
+    if sys.argv[a] == '--ask':
+        password = input('Input the password now\n')
+        os.system('clear')
     if sys.argv[a] == '--password':
         password = sys.argv[a+1]
-    else:password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
+    #else:password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
     if sys.argv[a] == '--username':
         username = sys.argv[a+1]
-    else:username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1]
+    #else:username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
     if sys.argv[a] == '--school':
         school = sys.argv[a+1]
 
