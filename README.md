@@ -13,7 +13,7 @@ Not conformable storing the password in the shell history? Use --ask instead of 
 To get the schedule html page
 
 <code>python3 schoolsoft.py --username username --password password --school school 2</code>
-To get the schedule for day 2 (Wednesday) (Provided you've edited schoolsoft.py and added the school, username and password)
+To get the schedule for day 2 (Wednesday)
 
 <h2>How does the schedule sorting work?</h2>
 All the blocks in the scheme have a rowspan (basically size). What I did was place the classes from schoolsoft.py (sorted by time) in the day with the lowest rowspan.
