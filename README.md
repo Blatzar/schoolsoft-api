@@ -2,7 +2,7 @@
 Super crappy schoolsoft api to get the schedule in order and the lunch menu
 
 <h2>How do I get this to work?</h2>
-Running this on a linux is required due to shell commands
+Running this on a linux is required due to shell commands.
 You need to set an environment variable: <code>$SCRIPTS</code> 
 
 <code>$SCRIPTS</code> Is the directory you store these scripts in. This can be set by editing /etc/environment
