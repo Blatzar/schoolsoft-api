@@ -5,7 +5,7 @@ Super crappy schoolsoft api to get the schedule in order and the lunch menu
 Running this on linux is required due to shell commands. Any contributions to make this script universal is appreciated.
 You need to set an environment variable: <code>$SCRIPTS</code> 
 
-<code>$SCRIPTS</code> Is the directory you store these scripts in. This can be set by editing /etc/environment
+<code>$SCRIPTS</code> Is the directory you store these scripts in. 
 
 <h2>How do i start it?</h2>
 
