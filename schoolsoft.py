@@ -169,7 +169,7 @@ for d in range(len(sys.argv)):
         day = int(sys.argv[d])
         for e in range(len(schedule_list[1][day])):
             print(schedule_list[1][day][e],end='') #end='' is to stop printing a new line
-            print(' **'+schedule_list[2][day][e]+'** ',end='') # '**' for the discord bot I use, can safely be removed
+            print(' '+schedule_list[2][day][e]+' ',end='')
             print(schedule_list[3][day][e])
 
 
