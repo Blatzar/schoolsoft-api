@@ -21,5 +21,5 @@ For example if the rowspans of the time between 8:00 and the first class are: [2
 It's reccomended that you look at the html and rowspan on schoolsoft to understand better.
 
 <h2>Credits</h2>
-The schoolsoft was copied from this python script
+The schoolsoft login was copied from this python script
 https://github.com/lnus/schoolsoft-api
