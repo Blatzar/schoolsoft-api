@@ -4,24 +4,35 @@ import requests
 import re
 import os
 import sys
+from time import gmtime, strftime
 
-username = ''
-password = ''
+username = '' #add your username here in order to skip typing it every time, --username is prioritized over this
+password = '' #add your password in order to skip typing it every time, --password is prioritized over this
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
 
 for a in range(len(sys.argv)):
+    if sys.argv[a] == '--help' or sys.argv[a] == '-h':
+        print('--username username  To choose schoolsoft username')
+        print('--password password  To choose schoolsoft password')
+        print('--ask                In order to prevent password showing in shell history, used insead of --password')
+        print('--school schoolname  If your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"')
+        print('--lunch              To get the menu in a 2d list')
+        print('--raw-schedule       To get the whole raw schedule, good for scripting')
+        print('--day                To get the schedule for today')
+        print('0-4                  To get the schedule for a specific day, starting from 0')
+        print('--discord            Schedule formatting for my discord bot, used together with --day or 0-4, only affects commands after it')
+    if sys.argv[a] == '--password' and len(sys.argv) > a+1:
+        password = sys.argv[a+1]
+    if sys.argv[a] == '--username' and len(sys.argv) > a+1:
+        username = sys.argv[a+1]
+    if sys.argv[a] == '--school' and len(sys.argv) > a+1:
+        school = sys.argv[a+1]
     if sys.argv[a] == '--ask':
         password = input('Input the password now\n')
         os.system('clear')
-    if sys.argv[a] == '--password':
-        password = sys.argv[a+1]
-    if sys.argv[a] == '--username':
-        username = sys.argv[a+1]
-    if sys.argv[a] == '--school':
-        school = sys.argv[a+1]
 
-username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
-password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
+#username = username = os.popen('cat $HOME/keep/testkeys/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
+#password = os.popen('cat $HOME/keep/testkeys/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
 
  
 class AuthFailure(Exception):
@@ -81,7 +92,8 @@ class SchoolSoft(object):
 
                 return self.try_get(url, attempts+1)
             else:
-                raise AuthFailure("Invalid username or password")
+                print("ERROR: Invalid username or password")
+                sys.exit(1)
         else:
             return r
 
@@ -128,6 +140,9 @@ full = str(api.fetch_schedule()[1]) #Full schedule html
 full = full.replace('<td','\n') #Helps the cutter script
 full = re.sub('class="schedulecell" rowspan="6" width="5%">[0-9]*[0-9]:[0-9][0-9]</td>','',full) #Replaces unwanted rowspans, important for the script to work
 count = full.count('rowspan=') 
+if count < 5: #Arbitrary number, should be replaced if there's more rowspans in the downloaded html without a login
+    print("ERROR: Couldn't find rowspans, the schoolname is most likely incorrect")
+    sys.exit(1)
 
 begin = 0
 rowspans = []
@@ -161,16 +176,22 @@ for b in range(len(rowspans)-5): #This is where the magic happends, it calculate
         schedule.pop(0)
 
     schedule_list[0][summa.index(min(summa))].append(int(rowspans[5+b]))
-
+prefix = ' '
 for d in range(len(sys.argv)):
     if sys.argv[d] == '--lunch':
         print(lunch)
-    if len(sys.argv[d]) == 1 and sys.argv[d] in '01234':
-        day = int(sys.argv[d])
+    if sys.argv[d] == '--raw-schedule':
+        print(schedule_list)
+    if sys.argv[d] == '--discord':
+        prefix = ' ** '
+    if (len(sys.argv[d]) == 1 and sys.argv[d] in '01234') or sys.argv[d] == '--day':
+        if sys.argv[d] == '--day':
+            day = (int(strftime("%w", gmtime()))-1)
+        else:day = int(sys.argv[d])
         for e in range(len(schedule_list[1][day])):
-            print(schedule_list[1][day][e],end='') #end='' is to stop printing a new line
-            print(' '+schedule_list[2][day][e]+' ',end='')
-            print(schedule_list[3][day][e])
+            print(schedule_list[1][day][e],end='') #end='' is to avoid printing a new line
+            print(prefix+schedule_list[2][day][e]+prefix,end='')
+            print(schedule_list[3][day][e],end='')
 
 
 
