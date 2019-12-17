@@ -26,8 +26,8 @@ for a in range(len(sys.argv)):
     if sys.argv[a] == '--school':
         school = sys.argv[a+1]
 
-username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
-password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
+#username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
+#password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
 
  
 class AuthFailure(Exception):
