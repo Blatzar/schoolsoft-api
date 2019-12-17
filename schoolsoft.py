@@ -5,34 +5,29 @@ import re
 import os
 import sys
 from time import gmtime, strftime
-
-username = '' #add your username here in order to skip typing it every time, --username is prioritized over this
-password = '' #add your password in order to skip typing it every time, --password is prioritized over this
+lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
+lunchtoggle = True #False if you don't want to print the lunch
+username = ''
+password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
+english = False #Language of the days
+
+if english:days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+else:days = ['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag']
 
 for a in range(len(sys.argv)):
-    if sys.argv[a] == '--help' or sys.argv[a] == '-h':
-        print('--username username  To choose schoolsoft username')
-        print('--password password  To choose schoolsoft password')
-        print('--ask                In order to prevent password showing in shell history, used insead of --password')
-        print('--school schoolname  If your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"')
-        print('--lunch              To get the menu in a 2d list')
-        print('--raw-schedule       To get the whole raw schedule, good for scripting')
-        print('--day                To get the schedule for today')
-        print('0-4                  To get the schedule for a specific day, starting from 0')
-        print('--discord            Schedule formatting for my discord bot, used together with --day or 0-4, only affects commands after it')
-    if sys.argv[a] == '--password' and len(sys.argv) > a+1:
-        password = sys.argv[a+1]
-    if sys.argv[a] == '--username' and len(sys.argv) > a+1:
-        username = sys.argv[a+1]
-    if sys.argv[a] == '--school' and len(sys.argv) > a+1:
-        school = sys.argv[a+1]
     if sys.argv[a] == '--ask':
         password = input('Input the password now\n')
         os.system('clear')
+    if sys.argv[a] == '--password':
+        password = sys.argv[a+1]
+    if sys.argv[a] == '--username':
+        username = sys.argv[a+1]
+    if sys.argv[a] == '--school':
+        school = sys.argv[a+1]
 
-#username = username = os.popen('cat $HOME/keep/testkeys/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
-#password = os.popen('cat $HOME/keep/testkeys/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
+username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
+password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
 
  
 class AuthFailure(Exception):
@@ -92,8 +87,7 @@ class SchoolSoft(object):
 
                 return self.try_get(url, attempts+1)
             else:
-                print("ERROR: Invalid username or password")
-                sys.exit(1)
+                raise AuthFailure("Invalid username or password")
         else:
             return r
 
@@ -114,7 +108,7 @@ class SchoolSoft(object):
 
         return lunch_menu
 
-    def fetch_schedule(self):
+    def fetch_info(self):
         """
         Fetches the schedule of logged in user
         Returns an (not currently) ordered list with days going from index 0-4
@@ -122,7 +116,9 @@ class SchoolSoft(object):
         """
 
         schedule_html = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
+        tests = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_test_schedule.jsp?menu=test_schedule".format(self.school))
         schedule = BeautifulSoup(schedule_html.text, "html.parser")
+        tests = str(BeautifulSoup(tests.text, "html.parser"))
         full_schedule = []
 
         for a in schedule.find_all("a", {"class": "schedule"}):
@@ -130,19 +126,60 @@ class SchoolSoft(object):
             info_pretty = info.get_text(separator=u"<br/>").split(u"<br/>")
             full_schedule.append(info_pretty)
 
-        return (full_schedule, schedule)
+        return (full_schedule, str(schedule), tests)
 
 api = SchoolSoft(school, username, password)
 lunch = api.fetch_lunch_menu() #Sorted in an array
-schedule = api.fetch_schedule()[0]
+schedule,full,prov = api.fetch_info()
 
-full = str(api.fetch_schedule()[1]) #Full schedule html
+#in order to get a list of all info on all days
+mid = []
+start = 0 
+for a in range(prov.count('col-5-days')):
+        start = prov[start:].find('col-5-days') + start + 1 
+        stop = prov[start:].find('col-5-days') + start
+        mid.append(prov[start:stop])
+
+
+weekinfo = [ [],[]   ]
+#weekinfo [0] = col-5-days number of the weekstart
+#weekinfo [1] = weeknumber
+tests = [ [],[],[],[]    ] 
+#tests[0] = day of the test, starting from 0
+#tests[1] = label of the test, eg Test, Homework
+#tests[2] = Title of the test and more info
+#tests[3] = Week of the test
+#example of a week with 2 tests
+#[[0, 1], ['Prov', 'Prov'], ['Litteraturprov SVESVE02', 'Prov: psykodynamiskt perspektiv och beteendeperspektiv PSKPSY01'], [51, 51]]
+
+for b in range(len(mid)):
+        if 'valign="top">v' in mid[b]: #gets the week
+            start = (mid[b]).find('valign="top"')+13
+            stop = (mid[b])[start:].find('<')+start
+            week = int((mid[b])[start+1:stop])
+            weekinfo[1].append(week)
+            weekinfo[0].append(b)
+        if 'label' in mid[b]:
+            label = str(re.search('<label>[A-z]*<\/label>',mid[b]).group(0)).strip('<label>').strip('</label>')  #gets the label (Test, Homework, etc)
+            day = int(str(re.search('day=[0-6]',mid[b]).group(0)).strip('day=')) #day of the test
+            tests[0].append(day)
+            tests[1].append(label)
+            if len(weekinfo[0]) > 1: #to get the week of the test based on col-5-days of the test and col-5-days of the week
+                for c in range(len(weekinfo[0])):
+                    if b > weekinfo[0][c] and b < weekinfo[0][c+1]:
+                        tests[3].append(weekinfo[1][c]) 
+            else:
+                if len(weekinfo[0]) == 1:
+                    tests[3].append(weekinfo[1][0])
+            if 'title="' in mid[b]: #gets the info on the test
+                start = (mid[b]).find('title="')+7 
+                stop = (mid[b])[start:].find('<')+start
+                title = (mid[b])[start:stop].replace('\r\n">',' ') 
+                tests[2].append(title)
+
 full = full.replace('<td','\n') #Helps the cutter script
 full = re.sub('class="schedulecell" rowspan="6" width="5%">[0-9]*[0-9]:[0-9][0-9]</td>','',full) #Replaces unwanted rowspans, important for the script to work
 count = full.count('rowspan=') 
-if count < 5: #Arbitrary number, should be replaced if there's more rowspans in the downloaded html without a login
-    print("ERROR: Couldn't find rowspans, the schoolname is most likely incorrect")
-    sys.exit(1)
 
 begin = 0
 rowspans = []
@@ -176,22 +213,63 @@ for b in range(len(rowspans)-5): #This is where the magic happends, it calculate
         schedule.pop(0)
 
     schedule_list[0][summa.index(min(summa))].append(int(rowspans[5+b]))
-prefix = ' '
+
+if lunchtoggle: #adds lunch to the schedule, based on break time
+    for x in range(5):
+        for y in range(len(schedule_list[0][x])-2):
+            if y%2==0 and y != 0:
+                if int(schedule_list[0][x][y]) > lunchtime/5:
+                    schedule_list[1][x].insert(int(y/2),'Lunch')
+                    schedule_list[2][x].insert(int(y/2),'')
+                    schedule_list[3][x].insert(int(y/2),'')
+prefix = ''
+api = False
 for d in range(len(sys.argv)):
     if sys.argv[d] == '--lunch':
+        print(len(lunch))
         print(lunch)
+        if api:
+            for f in range(len(lunch)):
+                print('n'+str(f)+'="'+lunch[f][0]+'"')
+                if len(lunch[f]) > 1:
+                    print('v'+str(f)+'="'+lunch[f][1]+'"')
+        else:
+             for f in range(len(lunch)):
+                print(lunch[f][0])
+                if len(lunch[f]) > 1:
+                    print(lunch[f][1]+'\n')
+    if sys.argv[d] == '--api':
+        api = True
     if sys.argv[d] == '--raw-schedule':
         print(schedule_list)
     if sys.argv[d] == '--discord':
-        prefix = ' ** '
+        prefix = '**'
+    if sys.argv[d] == '--tests':
+        if len(tests[0]) == 0:
+            if english:
+                print('No tests upcoming')
+            else:
+                print('Inga prov eller läxor')
+        else:
+            print(prefix+'Vecka: '+str(tests[3][0])+prefix)
+            for a in range(len(tests[0])):
+                if tests[3][a] != tests[3][a-1]:
+                    print(prefix+'Vecka: '+prefix+str(tests[3][a]))
+                print(prefix+days[tests[0][a]]+prefix+'\n'+tests[1][a]+': '+tests[2][a])
     if (len(sys.argv[d]) == 1 and sys.argv[d] in '01234') or sys.argv[d] == '--day':
         if sys.argv[d] == '--day':
             day = (int(strftime("%w", gmtime()))-1)
         else:day = int(sys.argv[d])
+        if api:
+            print('{')
         for e in range(len(schedule_list[1][day])):
-            print(schedule_list[1][day][e],end='') #end='' is to avoid printing a new line
-            print(prefix+schedule_list[2][day][e]+prefix,end='')
-            print(schedule_list[3][day][e],end='')
-
-
-
+            if api:
+                print(str(e) + '="',end='')
+            print(schedule_list[1][day][e],end='') #end='' is to stop printing a new line
+            print(' ' + prefix+schedule_list[2][day][e]+prefix + ' ',end='')
+            print(schedule_list[3][day][e][:-2],end='') #[:-2] to remove \n\r, remove this if it only partly prints classroom names
+            if api:
+                print('"')
+            else:print('')
+        if api:
+            print('}')
