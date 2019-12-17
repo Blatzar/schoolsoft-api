@@ -15,6 +15,9 @@ To get the schedule html page
 <code>python3 schoolsoft.py --username username --password password --school school 2</code>
 To get the schedule for day 2 (Wednesday)
 
+<code>python3 schoolsoft.py --username username --password password --school school --tests</code>
+To get the upcoming tests
+
 <h2>How does the schedule sorting work?</h2>
 All the blocks in the scheme have a rowspan (basically size). What I did was place the classes from schoolsoft.py (sorted by time) in the day with the lowest rowspan.
 For example if the rowspans of the time between 8:00 and the first class are: [22,24,7,18,16] you can deduct that the first class (by time) is going to be on Wednesday. Repeating this you can eventually get the whole scheme.
