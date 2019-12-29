@@ -6,7 +6,7 @@ import os
 import sys
 from time import gmtime, strftime
 lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
-lunchtoggle = True #False if you don't want to print the lunch
+lunchtoggle = False #True if you want to print the lunch
 username = ''
 password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
@@ -26,8 +26,8 @@ for a in range(len(sys.argv)):
     if sys.argv[a] == '--school':
         school = sys.argv[a+1]
 
-#username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
-#password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
+#username = username = os.popen('cat $HOME/keep/testkeys/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
+#password = os.popen('cat $HOME/keep/testkeys/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
 
  
 class AuthFailure(Exception):
@@ -115,7 +115,7 @@ class SchoolSoft(object):
         This list contains all events on that day
         """
 
-        schedule_html = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
+        schedule_html = self.try_get("https://sms13.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
         tests = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_test_schedule.jsp?menu=test_schedule".format(self.school))
         schedule = BeautifulSoup(schedule_html.text, "html.parser")
         tests = str(BeautifulSoup(tests.text, "html.parser"))
@@ -127,6 +127,23 @@ class SchoolSoft(object):
             full_schedule.append(info_pretty)
 
         return (full_schedule, str(schedule), tests)
+
+def ConvertRowspans(rowspans,stop,start=0):
+    hour = 8 #starting hour
+    minute = 0 #starting minute
+    total = sum(rowspans[start:stop])
+    while(True):
+        if total >= 12: #one rowspan = 5m
+            hour = hour + 1
+            total = total - 12
+            continue
+        if len(str(hour)) == 1:
+            hour = ("0"+str(hour))
+        minute = total*5
+        if len(str(minute)) == 1:
+            minute = ("0"+str(minute))
+        return(str(hour)+':'+str(minute))
+        
 
 api = SchoolSoft(school, username, password)
 lunch = api.fetch_lunch_menu() #Sorted in an array
@@ -188,16 +205,18 @@ for a in range(count): #This for-loop finds all rowspans and appends them to row
 	rowspans.append(full[start:start+full[start:].find('"')])
 	begin =full[begin:].find('rowspan')+begin + 1
 
-schedule_list = [ [ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ] ] #Stores everything in an easily accesible list
+schedule_list = [ [ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ] ] #Stores everything in an easily accesible list
 
 #schedule_list[0] = rowspans (This isn't really needed for general use, just calculations)
 #schedule_list[1] = Class name 
 #schedule_list[2] = Class time
 #schedule_list[3] = Class location
+#schedule_list[4] = Class time based on rowspans (formatted diffrently)
 #schedule_list[x][y][z]: y = day, z = class number (z = 0 means first class of the day) 
 #Example:
 #schedule_list[2][3] = Class times on day 3 (Thursday) 
 #schedule_list[1][2][4] = Class name of the fifth class on day 2 (Wednesday)
+
 
 for a in range(5): #Appends the first 5 rowspans
     schedule_list[0][a].append(int(rowspans[a]))
@@ -209,7 +228,7 @@ for b in range(len(rowspans)-5): #This is where the magic happends, it calculate
     if (len(schedule_list[0][summa.index(min(summa))]))%2 != 0:
         schedule_list[1][summa.index(min(summa))].append(schedule[0][0])
         schedule_list[2][summa.index(min(summa))].append(schedule[0][1])
-        schedule_list[3][summa.index(min(summa))].append(schedule[0][2])
+        schedule_list[3][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
         schedule.pop(0)
 
     schedule_list[0][summa.index(min(summa))].append(int(rowspans[5+b]))
@@ -222,6 +241,12 @@ if lunchtoggle: #adds lunch to the schedule, based on break time
                     schedule_list[1][x].insert(int(y/2),'Lunch')
                     schedule_list[2][x].insert(int(y/2),'')
                     schedule_list[3][x].insert(int(y/2),'')
+
+for a in range(5):
+    for b in range(1,len(schedule_list[0][a])):
+        schedule_list[4][a].append(ConvertRowspans(schedule_list[0][a],b))
+
+
 prefix = ''
 api = False
 for d in range(len(sys.argv)):
