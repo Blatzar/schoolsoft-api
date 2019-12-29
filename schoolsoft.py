@@ -115,7 +115,7 @@ class SchoolSoft(object):
         This list contains all events on that day
         """
 
-        schedule_html = self.try_get("https://sms13.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
+        schedule_html = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
         tests = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_test_schedule.jsp?menu=test_schedule".format(self.school))
         schedule = BeautifulSoup(schedule_html.text, "html.parser")
         tests = str(BeautifulSoup(tests.text, "html.parser"))
