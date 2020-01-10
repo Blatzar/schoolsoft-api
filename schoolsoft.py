@@ -6,7 +6,7 @@ import os
 import sys
 from time import gmtime, strftime
 lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
-lunchtoggle = False #True if you want to print the lunch
+lunchtoggle = True #False if you don't want to print the lunch
 username = ''
 password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
@@ -26,8 +26,8 @@ for a in range(len(sys.argv)):
     if sys.argv[a] == '--school':
         school = sys.argv[a+1]
 
-#username = username = os.popen('cat $HOME/keep/testkeys/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
-#password = os.popen('cat $HOME/keep/testkeys/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
+username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
+password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
 
  
 class AuthFailure(Exception):
@@ -105,10 +105,9 @@ class SchoolSoft(object):
         for div in menu.find_all("td", {"style": "word-wrap: break-word"}):
             food_info = div.get_text(separator=u"<br/>").split(u"<br/>")
             lunch_menu.append(food_info)
-
         return lunch_menu
 
-    def fetch_info(self):
+    def fetch_schedule(self):
         """
         Fetches the schedule of logged in user
         Returns an (not currently) ordered list with days going from index 0-4
@@ -116,9 +115,7 @@ class SchoolSoft(object):
         """
 
         schedule_html = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
-        tests = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_test_schedule.jsp?menu=test_schedule".format(self.school))
         schedule = BeautifulSoup(schedule_html.text, "html.parser")
-        tests = str(BeautifulSoup(tests.text, "html.parser"))
         full_schedule = []
 
         for a in schedule.find_all("a", {"class": "schedule"}):
@@ -126,37 +123,27 @@ class SchoolSoft(object):
             info_pretty = info.get_text(separator=u"<br/>").split(u"<br/>")
             full_schedule.append(info_pretty)
 
-        return (full_schedule, str(schedule), tests)
+        return (full_schedule, str(schedule))
+    
+    def fetch_tests(self):
+        tests = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_test_schedule.jsp?menu=test_schedule".format(self.school))
+        tests = str(BeautifulSoup(tests.text, "html.parser"))
+        return(tests)
 
-def ConvertRowspans(rowspans,stop,start=0):
-    hour = 8 #starting hour
-    minute = 0 #starting minute
-    total = sum(rowspans[start:stop])
-    while(True):
-        if total >= 12: #one rowspan = 5m
-            hour = hour + 1
-            total = total - 12
-            continue
-        if len(str(hour)) == 1:
-            hour = ("0"+str(hour))
-        minute = total*5
-        if len(str(minute)) == 1:
-            minute = ("0"+str(minute))
-        return(str(hour)+':'+str(minute))
-        
+api = SchoolSoft(school, username, password) #__init__
 
-api = SchoolSoft(school, username, password)
+
 lunch = api.fetch_lunch_menu() #Sorted in an array
-schedule,full,prov = api.fetch_info()
+schedule,full = api.fetch_schedule() #schedule
+prov = api.fetch_tests()
 
-#in order to get a list of all info on all days
+#in order to get a list of all info on all days, every day has a col-5-days separator
 mid = []
 start = 0 
 for a in range(prov.count('col-5-days')):
         start = prov[start:].find('col-5-days') + start + 1 
         stop = prov[start:].find('col-5-days') + start
         mid.append(prov[start:stop])
-
 
 weekinfo = [ [],[]   ]
 #weekinfo [0] = col-5-days number of the weekstart
@@ -168,39 +155,35 @@ tests = [ [],[],[],[]    ]
 #tests[3] = Week of the test
 #example of a week with 2 tests
 #[[0, 1], ['Prov', 'Prov'], ['Litteraturprov SVESVE02', 'Prov: psykodynamiskt perspektiv och beteendeperspektiv PSKPSY01'], [51, 51]]
-
 for b in range(len(mid)):
+        titleindex = 0
+        labelindex = 0
+        for a in range(mid[b].count('<label>')): #multiple tests on the same day
+            label = ((re.search('<label>[\W\w]*?<\/label>',mid[b][labelindex:]))).group(0).strip('<label>').strip('</label>')  #gets the label (Test, Homework, etc) 
+            day = int(str(re.search('day=[0-6]',mid[b]).group(0)).strip('day=')) #day of the test
+            tests[0].append(day)
+            tests[1].append(label)
+            tests[3].append(round((b/6)-0.5)+weekinfo[1][0])
+            if 'title="' in mid[b]: #gets the info on the test
+                title = re.search('title="[\W\w\n]*?"',mid[b][titleindex:]).group(0).strip('title"').replace('\r\n">',' ')[2:-1] #Title can have max 50 characters, change regex if needed
+                tests[2].append(title)
+            titleindex = mid[b][titleindex:].find('title="') + titleindex + 1 #Finds the location of the title
+            labelindex = mid[b][labelindex:].find('<label>') + labelindex + 1
         if 'valign="top">v' in mid[b]: #gets the week
-            start = (mid[b]).find('valign="top"')+13
+            start = (mid[b]).find('valign="top"')+13 #could be done with regex, but this already works
             stop = (mid[b])[start:].find('<')+start
             week = int((mid[b])[start+1:stop])
             weekinfo[1].append(week)
             weekinfo[0].append(b)
-        if 'label' in mid[b]:
-            label = str(re.search('<label>[A-z]*<\/label>',mid[b]).group(0)).strip('<label>').strip('</label>')  #gets the label (Test, Homework, etc)
-            day = int(str(re.search('day=[0-6]',mid[b]).group(0)).strip('day=')) #day of the test
-            tests[0].append(day)
-            tests[1].append(label)
-            if len(weekinfo[0]) > 1: #to get the week of the test based on col-5-days of the test and col-5-days of the week
-                for c in range(len(weekinfo[0])):
-                    if b > weekinfo[0][c] and b < weekinfo[0][c+1]:
-                        tests[3].append(weekinfo[1][c]) 
-            else:
-                if len(weekinfo[0]) == 1:
-                    tests[3].append(weekinfo[1][0])
-            if 'title="' in mid[b]: #gets the info on the test
-                start = (mid[b]).find('title="')+7 
-                stop = (mid[b])[start:].find('<')+start
-                title = (mid[b])[start:stop].replace('\r\n">',' ') 
-                tests[2].append(title)
-
+    
+    
 full = full.replace('<td','\n') #Helps the cutter script
 full = re.sub('class="schedulecell" rowspan="6" width="5%">[0-9]*[0-9]:[0-9][0-9]</td>','',full) #Replaces unwanted rowspans, important for the script to work
 count = full.count('rowspan=') 
 
 begin = 0
 rowspans = []
-for a in range(count): #This for-loop finds all rowspans and appends them to rowspans[]
+for a in range(count): #This for-loop finds all rowspans and appends them to rowspans[], useful for getting the schedule sorted
 	start = full[begin:].find('rowspan')+begin+9
 	rowspans.append(full[start:start+full[start:].find('"')])
 	begin =full[begin:].find('rowspan')+begin + 1
@@ -211,7 +194,7 @@ schedule_list = [ [ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],
 #schedule_list[1] = Class name 
 #schedule_list[2] = Class time
 #schedule_list[3] = Class location
-#schedule_list[4] = Class time based on rowspans (formatted diffrently)
+#schedule_list[4] = Class time (formatted diffrently)
 #schedule_list[x][y][z]: y = day, z = class number (z = 0 means first class of the day) 
 #Example:
 #schedule_list[2][3] = Class times on day 3 (Thursday) 
@@ -230,8 +213,13 @@ for b in range(len(rowspans)-5): #This is where the magic happends, it calculate
         schedule_list[2][summa.index(min(summa))].append(schedule[0][1])
         schedule_list[3][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
         schedule.pop(0)
-
     schedule_list[0][summa.index(min(summa))].append(int(rowspans[5+b]))
+
+for a in range(5): #Time formatted diffrently, useful for other script
+    for b in range(len(schedule_list[2][a])):
+        sep = schedule_list[2][a][b].find('-')
+        schedule_list[4][a].append(schedule_list[2][a][b][:sep])
+        schedule_list[4][a].append(schedule_list[2][a][b][sep+1:])
 
 if lunchtoggle: #adds lunch to the schedule, based on break time
     for x in range(5):
@@ -241,18 +229,14 @@ if lunchtoggle: #adds lunch to the schedule, based on break time
                     schedule_list[1][x].insert(int(y/2),'Lunch')
                     schedule_list[2][x].insert(int(y/2),'')
                     schedule_list[3][x].insert(int(y/2),'')
-
-for a in range(5):
-    for b in range(1,len(schedule_list[0][a])):
-        schedule_list[4][a].append(ConvertRowspans(schedule_list[0][a],b))
+                    schedule_list[4][x].insert(y,schedule_list[4][x][y-1])
+                    schedule_list[4][x].insert(y+1,schedule_list[4][x][y+1])
 
 
 prefix = ''
 api = False
 for d in range(len(sys.argv)):
     if sys.argv[d] == '--lunch':
-        print(len(lunch))
-        print(lunch)
         if api:
             for f in range(len(lunch)):
                 print('n'+str(f)+'="'+lunch[f][0]+'"')
@@ -267,6 +251,8 @@ for d in range(len(sys.argv)):
         api = True
     if sys.argv[d] == '--raw-schedule':
         print(schedule_list)
+    if sys.argv[d] == '--raw-lunch':
+        print(lunch)
     if sys.argv[d] == '--discord':
         prefix = '**'
     if sys.argv[d] == '--tests':
@@ -276,7 +262,6 @@ for d in range(len(sys.argv)):
             else:
                 print('Inga prov eller läxor')
         else:
-            print(prefix+'Vecka: '+str(tests[3][0])+prefix)
             for a in range(len(tests[0])):
                 if tests[3][a] != tests[3][a-1]:
                     print(prefix+'Vecka: '+prefix+str(tests[3][a]))
@@ -291,8 +276,9 @@ for d in range(len(sys.argv)):
             if api:
                 print(str(e) + '="',end='')
             print(schedule_list[1][day][e],end='') #end='' is to stop printing a new line
-            print(' ' + prefix+schedule_list[2][day][e]+prefix + ' ',end='')
-            print(schedule_list[3][day][e][:-2],end='') #[:-2] to remove \n\r, remove this if it only partly prints classroom names
+            if schedule_list[1][day][e] != 'Lunch':
+                print(' ' + prefix+schedule_list[2][day][e]+prefix + ' ',end='')
+            print(schedule_list[3][day][e],end='') #[:-2] to remove \n\r, remove this if it only partly prints classroom names
             if api:
                 print('"')
             else:print('')
