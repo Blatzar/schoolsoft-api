@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 from bs4 import BeautifulSoup
-import requests
-import re
-import os
-import sys
-from time import gmtime, strftime
+import requests, re, os, sys
+from time import gmtime, strftime 
+from getpass import getpass #password
+
 lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
 lunchtoggle = True #False if you don't want to print the lunch
 username = ''
@@ -12,13 +11,21 @@ password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
 english = False #Language of the days
 
+try:
+    import testkeys #To import my own login details, you can remove this
+    testkeys = testkeys.school()
+    school = testkeys.school
+    username = testkeys.username
+    password = testkeys.password
+except ImportError:
+    pass
+
 if english:days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 else:days = ['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag']
 
 for a in range(len(sys.argv)):
     if sys.argv[a] == '--ask':
-        password = input('Input the password now\n')
-        os.system('clear')
+        password = getpass()
     if sys.argv[a] == '--password':
         password = sys.argv[a+1]
     if sys.argv[a] == '--username':
@@ -26,10 +33,6 @@ for a in range(len(sys.argv)):
     if sys.argv[a] == '--school':
         school = sys.argv[a+1]
 
-username = username = os.popen('cat $TESTKEYS/schoolsoft.username').read()[:-1] #These cat lines can safely be removed, only used by me
-password = os.popen('cat $TESTKEYS/schoolsoft.password').read()[:-1] #Yes i store my password in plaintext
-
- 
 class AuthFailure(Exception):
     """In case API authentication fails"""
     pass
