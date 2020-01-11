@@ -9,9 +9,6 @@ To get the lunch in a list
 Not conformable storing the password in the shell history? Use --ask instead of --password
 <code>python3 schoolsoft.py --username username --ask --school school --lunch</code>
 
-<code>python3 schoolsoft.py --username username --password password --school school --html</code>
-To get the schedule html page
-
 <code>python3 schoolsoft.py --username username --password password --school school 2</code>
 To get the schedule for day 2 (Wednesday)
 
