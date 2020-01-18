@@ -5,7 +5,7 @@ from time import gmtime, strftime
 from getpass import getpass #password
 
 lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
-lunchtoggle = True #False if you don't want to print the lunch
+lunchtoggle = True#False if you don't want to print the lunch
 username = ''
 password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
@@ -151,7 +151,7 @@ for a in range(prov.count('col-5-days')):
 weekinfo = [ [],[]   ]
 #weekinfo [0] = col-5-days number of the weekstart
 #weekinfo [1] = weeknumber
-tests = [ [],[],[],[]    ] 
+tests = [ [],[],[],[] ] 
 #tests[0] = day of the test, starting from 0
 #tests[1] = label of the test, eg Test, Homework
 #tests[2] = Title of the test and more info
@@ -182,59 +182,82 @@ for b in range(len(mid)):
     
 full = full.replace('<td','\n') #Helps the cutter script
 full = re.sub('class="schedulecell" rowspan="6" width="5%">[0-9]*[0-9]:[0-9][0-9]</td>','',full) #Replaces unwanted rowspans, important for the script to work
-count = full.count('rowspan=') 
 
-begin = 0
-rowspans = []
-for a in range(count): #This for-loop finds all rowspans and appends them to rowspans[], useful for getting the schedule sorted
-	start = full[begin:].find('rowspan')+begin+9
-	rowspans.append(full[start:start+full[start:].find('"')])
-	begin =full[begin:].find('rowspan')+begin + 1
+def Classes(full):
+    start = 0
+    groups = []
+    for a in range(full.count('class="')):
+        start = full[start:].find('class="') + start +1 
+        group = re.search('class="[\W\w]*?"',full[start:])
+        if group:
+            group = group.group(0) #group as variable name may be confusing
+    
+        if group == 'class="schedulecell"':
+            groups.append(1)
+        if group == 'class="light schedulecell"':
+            groups.append(0)
+    groups = groups[6:] #Removes the first schedulecells which isn't part of the schedule
+    return(groups)
 
-schedule_list = [ [ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ] ] #Stores everything in an easily accesible list
+groups = Classes(full)
+
+def getRowspans(full):
+    count = full.count('rowspan=') 
+    begin = 0
+    rowspans = []
+    for a in range(count): #This for-loop finds all rowspans and appends them to rowspans[], useful for getting the schedule sorted
+            start = full[begin:].find('rowspan')+begin+9
+            rowspans.append(int(full[start:start+full[start:].find('"')]))
+            begin =full[begin:].find('rowspan')+begin + 1
+    return(rowspans)
 
 #schedule_list[0] = rowspans (This isn't really needed for general use, just calculations)
 #schedule_list[1] = Class name 
 #schedule_list[2] = Class time
 #schedule_list[3] = Class location
 #schedule_list[4] = Class time (formatted diffrently)
+#schedule_list[5] = Type of schedule (1 for class and 0 for break)
 #schedule_list[x][y][z]: y = day, z = class number (z = 0 means first class of the day) 
 #Example:
 #schedule_list[2][3] = Class times on day 3 (Thursday) 
 #schedule_list[1][2][4] = Class name of the fifth class on day 2 (Wednesday)
 
+def sortSchedule(full,schedule):
+    rowspans = getRowspans(full)
+    schedule_list = [ [ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ] ] #Stores everything in an easily accesible list
 
-for a in range(5): #Appends the first 5 rowspans
-    schedule_list[0][a].append(int(rowspans[a]))
+    for a in range(len(rowspans)):
+        summa = [ [],[],[],[],[]  ]
+        for b in range(5):
+            summa[b].append(sum(schedule_list[0][b]))
+        schedule_list[0][summa.index(min(summa))].append(int(rowspans[a]))
+        schedule_list[5][summa.index(min(summa))].append(int(groups[a]))
+        if groups[a]: #If there's a class 
+            schedule_list[1][summa.index(min(summa))].append(schedule[0][0])
+            schedule_list[2][summa.index(min(summa))].append(schedule[0][1])
+            schedule_list[3][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
+            schedule.pop(0) #Removes the first item so the next item can be used, better than keeping count on what number you're on
 
-for b in range(len(rowspans)-5): #This is where the magic happends, it calculates where the schedules should be placed based on the block size    
-    summa = [ [],[],[],[],[]  ]
-    for c in range(5):
-        summa[c].append(sum(schedule_list[0][c]))
-    if (len(schedule_list[0][summa.index(min(summa))]))%2 != 0:
-        schedule_list[1][summa.index(min(summa))].append(schedule[0][0])
-        schedule_list[2][summa.index(min(summa))].append(schedule[0][1])
-        schedule_list[3][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
-        schedule.pop(0)
-    schedule_list[0][summa.index(min(summa))].append(int(rowspans[5+b]))
+    for c in range(5): #Time formatted diffrently, useful for other scripts
+        for d in range(len(schedule_list[2][c])):
+            sep = schedule_list[2][c][d].find('-')
+            schedule_list[4][c].append(schedule_list[2][c][d][:sep])
+            schedule_list[4][c].append(schedule_list[2][c][d][sep+1:])
+            
+    return(schedule_list)
 
-for a in range(5): #Time formatted diffrently, useful for other script
-    for b in range(len(schedule_list[2][a])):
-        sep = schedule_list[2][a][b].find('-')
-        schedule_list[4][a].append(schedule_list[2][a][b][:sep])
-        schedule_list[4][a].append(schedule_list[2][a][b][sep+1:])
-
+schedule_list = sortSchedule(full,schedule)
 if lunchtoggle: #adds lunch to the schedule, based on break time
     for x in range(5):
-        for y in range(len(schedule_list[0][x])-2):
-            if y%2==0 and y != 0:
-                if int(schedule_list[0][x][y]) > lunchtime/5:
-                    schedule_list[1][x].insert(int(y/2),'Lunch')
-                    schedule_list[2][x].insert(int(y/2),'')
-                    schedule_list[3][x].insert(int(y/2),'')
-                    schedule_list[4][x].insert(y,schedule_list[4][x][y-1])
-                    schedule_list[4][x].insert(y+1,schedule_list[4][x][y+1])
-
+        for y in range(len(schedule_list[5][x])):
+            if not schedule_list[5][x][y] and y != 0 and int(schedule_list[0][x][y]) > (lunchtime/5):
+                count = schedule_list[5][x][:y].count(1) #Gets the amout of classes before lunch, for inserting lunch at the correct place
+                schedule_list[1][x].insert(count,'Lunch')
+                schedule_list[2][x].insert(count,'')
+                schedule_list[3][x].insert(count,'')
+                schedule_list[4][x].insert(int(count*2),schedule_list[4][x][int(count*2)-1])
+                schedule_list[4][x].insert(int(count*2)+1,schedule_list[4][x][int(count*2)+1])
+                break #one lunch/day
 
 prefix = ''
 api = False
