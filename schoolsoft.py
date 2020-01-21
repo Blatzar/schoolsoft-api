@@ -137,6 +137,9 @@ api = SchoolSoft(school, username, password) #__init__
 
 
 lunch = api.fetch_lunch_menu() #Sorted in an array
+for a in range(5): #This loop is to make sure there's always a veg option
+	if len(lunch[a]) == 1:
+		lunch[a].append(lunch[a][0])
 schedule,full = api.fetch_schedule() #schedule
 prov = api.fetch_tests()
 
