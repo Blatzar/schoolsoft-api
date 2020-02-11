@@ -10,6 +10,8 @@ username = ''
 password = ''
 school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
 english = False #Language of the days
+lunchweek = -1 #Week -1 gives default results
+scheduleweek = 0 #Week -1 gives default results
 
 try:
     import testkeys #To import my own login details, you can remove this
@@ -32,6 +34,10 @@ for a in range(len(sys.argv)):
         username = sys.argv[a+1]
     if sys.argv[a] == '--school':
         school = sys.argv[a+1]
+    if sys.argv[a] == '--lunchweek':
+        lunchweek = sys.argv[a+1]
+    if sys.argv[a] == '--scheduleweek':
+        scheduleweek = sys.argv[a+1]
 
 class AuthFailure(Exception):
     """In case API authentication fails"""
@@ -94,13 +100,13 @@ class SchoolSoft(object):
         else:
             return r
 
-    def fetch_lunch_menu(self):
+    def fetch_lunch_menu(self, lunchweek = -1):
         """
         Fetches the lunch menu for the entire week
         Returns an ordered list with days going from index 0-4
         This list contains all the food on that day
         """
-        menu_html = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_lunchmenu.jsp?menu=lunchmenu".format(self.school))
+        menu_html = self.try_get("https://sms5.schoolsoft.se/{0}/jsp/student/right_student_lunchmenu.jsp?requestid={1}".format(self.school,lunchweek))
         menu = BeautifulSoup(menu_html.text, "html.parser")
 
         lunch_menu = []
@@ -108,16 +114,18 @@ class SchoolSoft(object):
         for div in menu.find_all("td", {"style": "word-wrap: break-word"}):
             food_info = div.get_text(separator=u"<br/>").split(u"<br/>")
             lunch_menu.append(food_info)
-        return lunch_menu
+        if len(lunch_menu) == 0:
+                if english:return([['not available'],['not available'],['not available'],['not available'],['not available']])
+                else:return([['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt']])
+        else:return(lunch_menu)
 
-    def fetch_schedule(self):
+    def fetch_schedule(self,scheduleweek=0):
         """
         Fetches the schedule of logged in user
         Returns an (not currently) ordered list with days going from index 0-4
         This list contains all events on that day
         """
-
-        schedule_html = self.try_get("https://sms5.schoolsoft.se/{}/jsp/student/right_student_schedule.jsp?menu=schedule".format(self.school))
+        schedule_html = self.try_get("https://sms5.schoolsoft.se/{0}/jsp/student/right_student_schedule.jsp?requestid=-2&type=0&teacher=0&student=0&room=0&term={1}".format(self.school,scheduleweek))
         schedule = BeautifulSoup(schedule_html.text, "html.parser")
         full_schedule = []
 
@@ -136,11 +144,11 @@ class SchoolSoft(object):
 api = SchoolSoft(school, username, password) #__init__
 
 
-lunch = api.fetch_lunch_menu() #Sorted in an array
+lunch = api.fetch_lunch_menu(lunchweek) #Sorted in an array
 for a in range(5): #This loop is to make sure there's always a veg option
 	if len(lunch[a]) == 1:
 		lunch[a].append(lunch[a][0])
-schedule,full = api.fetch_schedule() #schedule
+schedule,full = api.fetch_schedule(scheduleweek) #schedule
 prov = api.fetch_tests()
 
 #in order to get a list of all info on all days, every day has a col-5-days separator
@@ -295,7 +303,7 @@ for d in range(len(sys.argv)):
                 if tests[3][a] != tests[3][a-1]:
                     print(prefix+'Vecka: '+prefix+str(tests[3][a]))
                 print(prefix+days[tests[0][a]]+prefix+'\n'+tests[1][a]+': '+tests[2][a])
-    if (len(sys.argv[d]) == 1 and sys.argv[d] in '01234') or sys.argv[d] == '--day':
+    if (len(sys.argv[d]) == 1 and sys.argv[d] in '01234' and sys.argv[d-1] != '--lunchweek' and sys.argv[d-1] != '--scheduleweek') or sys.argv[d] == '--day':
         if sys.argv[d] == '--day':
             day = (int(strftime("%w", gmtime()))-1)
         else:day = int(sys.argv[d])
