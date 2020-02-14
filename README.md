@@ -3,17 +3,17 @@ Super crappy schoolsoft api to get the schedule in order and the lunch menu
 
 <h2>How do i start it?</h2>
 
-<code>python3 schoolsoft.py --username username --password password --school school --lunch</code>
+<code>python3 schoolsoft.py --username *username* --password *password* --school *school* --lunch</code>
 To get the lunch in a list
 
 Not conformable storing the password in the shell history? Use --ask instead of --password
 
-<code>python3 schoolsoft.py --username username --ask --school school --lunch</code>
+<code>python3 schoolsoft.py --username *username* --ask --school *school* --lunch</code>
 
-<code>python3 schoolsoft.py --username username --password password --school school 2</code>
+<code>python3 schoolsoft.py --username *username* --password *password* --school *school* --schedule 2</code>
 To get the schedule for day 2 (Wednesday)
 
-<code>python3 schoolsoft.py --username username --password password --school school --tests</code>
+<code>python3 schoolsoft.py --username *username* --password *password*--school *school* --tests</code>
 To get the upcoming tests
 
 <h2>How does the schedule sorting work?</h2>
