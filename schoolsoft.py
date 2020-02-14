@@ -3,15 +3,39 @@ from bs4 import BeautifulSoup
 import requests, re, os, sys
 from time import gmtime, strftime 
 from getpass import getpass #password
+import argparse
+
+parser = argparse.ArgumentParser()
 
 lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
 lunchtoggle = True#False if you don't want to print the lunch
-username = ''
-password = ''
-school = 'nacka' #if your schoolsoft-url is "https://sms13.schoolsoft.se/nacka/" then the schoolname is "nacka"
 english = False #Language of the days
-lunchweek = -1 #Week -1 gives default results
-scheduleweek = 0 #Week -1 gives default results
+
+if english:days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+else:days = ['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag']
+
+parser.add_argument( '--username','-u', default= '', help='SchoolSoft username' ) 
+parser.add_argument( '--password','-p', default= '', help='SchoolSoft password' ) 
+parser.add_argument( '--school', '-i', default='nacka', help='SchoolSoft school, if the URL is "sms13.schoolsoft.se/nacka/", the school name is "nacka"' ) 
+parser.add_argument( '--ask','-a', action='store_const', const=True, help='Asks for the password (if you don\'t want to store the password in the shell history)' ) 
+
+parser.add_argument( '--schedule','-s', default=[],choices=['0','1','2','3','4','today'], help='The days to get the schedule, use "today" to get current day')
+parser.add_argument( '--raw-schedule','-rs', action='store_const', const=True, help='Print the raw schedule (useful for scripts)' ) 
+parser.add_argument( '--scheduleweek','-sw', default= 0, help='Specify the week to get the schedule (default: current week)' ) 
+
+parser.add_argument( '--lunch','-l', action='store_const', const=True, help='Print the lunch' ) 
+parser.add_argument( '--raw-lunch','-rl', action='store_const', const=True, help='Print the raw lunch (useful for scripts)' ) 
+parser.add_argument( '--lunchweek','-lw',default= -1, help='Specify the week to get the lunch (default: current week)' ) 
+
+parser.add_argument( '--tests','-t', action='store_const', const=True, help='Print the tests' ) 
+parser.add_argument( '--discord','-d', action='store_const', const="**", default="", help='Use discord formatting (useful for discord bots)' ) 
+args = parser.parse_args()
+
+username = args.username
+password = args.password
+school = args.school
+lunchweek = args.lunchweek
+scheduleweek = args.scheduleweek
 
 try:
     import testkeys #To import my own login details, you can remove this
@@ -19,25 +43,10 @@ try:
     school = testkeys.school
     username = testkeys.username
     password = testkeys.password
-except ImportError:
-    pass
+except ImportError:pass
 
-if english:days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-else:days = ['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag']
 
-for a in range(len(sys.argv)):
-    if sys.argv[a] == '--ask':
-        password = getpass()
-    if sys.argv[a] == '--password':
-        password = sys.argv[a+1]
-    if sys.argv[a] == '--username':
-        username = sys.argv[a+1]
-    if sys.argv[a] == '--school':
-        school = sys.argv[a+1]
-    if sys.argv[a] == '--lunchweek':
-        lunchweek = sys.argv[a+1]
-    if sys.argv[a] == '--scheduleweek':
-        scheduleweek = sys.argv[a+1]
+if args.ask:password = getpass()
 
 class AuthFailure(Exception):
     """In case API authentication fails"""
@@ -281,54 +290,37 @@ if lunchtoggle: #adds lunch to the schedule, based on break time
                 schedule_list["time2"][x].insert(int(count*2)+1,schedule_list["time2"][x][int(count*2)+1])
                 break #one lunch/day
 
-prefix = ''
-api = False
-for d in range(len(sys.argv)):
-    if sys.argv[d] == '--lunch':
-        if api:
-            for f in range(len(lunch)):
-                print('n'+str(f)+'="'+lunch[f][0]+'"')
-                if len(lunch[f]) > 1:
-                    print('v'+str(f)+'="'+lunch[f][1]+'"')
+lunchweek = args.lunchweek
+scheduleweek = args.scheduleweek
+day = args.schedule
+prefix = args.discord
+
+if args.lunch:
+    for f in range(len(lunch)):
+        print(lunch[f][0])
+        if len(lunch[f]) > 1:
+            print(lunch[f][1]+'\n')
+
+if args.raw_schedule:print(schedule_list)
+if args.raw_lunch:print(lunch)    
+
+if args.tests:
+    if len(tests["day"]) == 0:
+        if english:print('No tests upcoming')
+        else:print('Inga prov eller läxor')
+    else:
+        for a in range(len(tests["day"])):
+            if tests["week"][a] != tests["week"][a-1]:
+                print(prefix+'Vecka: '+prefix+str(tests["week"][a]))
+            print(prefix+days[tests["day"][a]]+prefix+'\n'+tests["label"][a]+': '+tests["title"][a])
+
+for a in args.schedule:
+    if a == 'today':day = (int(strftime("%w", gmtime()))-1)
+    else:day = int(a)
+    
+    for e in range(len(schedule_list["name"][day])):
+        print(schedule_list["name"][day][e],end='') #end='' is to stop printing a new line
+        if schedule_list["name"][day][e] == 'Lunch':print('')
         else:
-             for f in range(len(lunch)):
-                print(lunch[f][0])
-                if len(lunch[f]) > 1:
-                    print(lunch[f][1]+'\n')
-    if sys.argv[d] == '--api':
-        api = True
-    if sys.argv[d] == '--raw-schedule':
-        print(schedule_list)
-    if sys.argv[d] == '--raw-lunch':
-        print(lunch)
-    if sys.argv[d] == '--discord':
-        prefix = '**'
-    if sys.argv[d] == '--tests':
-        if len(tests["day"]) == 0:
-            if english:
-                print('No tests upcoming')
-            else:
-                print('Inga prov eller läxor')
-        else:
-            for a in range(len(tests["day"])):
-                if tests["week"][a] != tests["week"][a-1]:
-                    print(prefix+'Vecka: '+prefix+str(tests["week"][a]))
-                print(prefix+days[tests["day"][a]]+prefix+'\n'+tests["label"][a]+': '+tests["title"][a])
-    if (len(sys.argv[d]) == 1 and sys.argv[d] in '01234' and sys.argv[d-1] != '--lunchweek' and sys.argv[d-1] != '--scheduleweek') or sys.argv[d] == '--day':
-        if sys.argv[d] == '--day':
-            day = (int(strftime("%w", gmtime()))-1)
-        else:day = int(sys.argv[d])
-        if api:
-            print('{')
-        for e in range(len(schedule_list["name"][day])):
-            if api:
-                print(str(e) + '="',end='')
-            print(schedule_list["name"][day][e],end='') #end='' is to stop printing a new line
-            if schedule_list["name"][day][e] != 'Lunch':
-                print(' ' + prefix+schedule_list["time"][day][e]+prefix + ' ',end='')
-            print(schedule_list["location"][day][e],end='') #[:-2] to remove \n\r, remove this if it only partly prints classroom names
-            if api:
-                print('"')
-            else:print('')
-        if api:
-            print('}')
+            print(' ' + prefix+schedule_list["time"][day][e]+prefix + ' ',end='')
+            print(schedule_list["location"][day][e]) #[:-2] to remove \n\r, remove this if it only partly prints classroom names
