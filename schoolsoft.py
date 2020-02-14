@@ -162,11 +162,16 @@ for a in range(prov.count('col-5-days')):
 weekinfo = [ [],[]   ]
 #weekinfo [0] = col-5-days number of the weekstart
 #weekinfo [1] = weeknumber
-tests = [ [],[],[],[] ] 
-#tests[0] = day of the test, starting from 0
-#tests[1] = label of the test, eg Test, Homework
-#tests[2] = Title of the test and more info
-#tests[3] = Week of the test
+tests = {
+		"day":[],
+		"label":[],
+		"title":[],
+		"week":[]
+		} 
+#tests["day"] = day of the test, starting from 0
+#tests["label"] = label of the test, eg Test, Homework
+#tests["title"] = Title of the test and more info
+#tests["week"] = Week of the test
 #example of a week with 2 tests
 #[[0, 1], ['Prov', 'Prov'], ['Litteraturprov SVESVE02', 'Prov: psykodynamiskt perspektiv och beteendeperspektiv PSKPSY01'], [51, 51]]
 for b in range(len(mid)):
@@ -175,12 +180,12 @@ for b in range(len(mid)):
         for a in range(mid[b].count('<label>')): #multiple tests on the same day
             label = ((re.search('<label>[\W\w]*?<\/label>',mid[b][labelindex:]))).group(0).strip('<label>').strip('</label>')  #gets the label (Test, Homework, etc) 
             day = int(str(re.search('day=[0-6]',mid[b]).group(0)).strip('day=')) #day of the test
-            tests[0].append(day)
-            tests[1].append(label)
-            tests[3].append(round((b/6)-0.5)+weekinfo[1][0])
+            tests["day"].append(day)
+            tests["label"].append(label)
+            tests["week"].append(round((b/6)-0.5)+weekinfo[1][0])
             if 'title="' in mid[b]: #gets the info on the test
                 title = re.search('title="[\W\w\n]*?"',mid[b][titleindex:]).group(0).strip('title"').replace('\r\n">',' ')[2:-1] #Title can have max 50 characters, change regex if needed
-                tests[2].append(title)
+                tests["title"].append(title)
             titleindex = mid[b][titleindex:].find('title="') + titleindex + 1 #Finds the location of the title
             labelindex = mid[b][labelindex:].find('<label>') + labelindex + 1
         if 'valign="top">v' in mid[b]: #gets the week
@@ -222,52 +227,58 @@ def getRowspans(full):
             begin =full[begin:].find('rowspan')+begin + 1
     return(rowspans)
 
-#schedule_list[0] = rowspans (This isn't really needed for general use, just calculations)
-#schedule_list[1] = Class name 
-#schedule_list[2] = Class time
-#schedule_list[3] = Class location
-#schedule_list[4] = Class time (formatted diffrently)
-#schedule_list[5] = Type of schedule (1 for class and 0 for break)
-#schedule_list[x][y][z]: y = day, z = class number (z = 0 means first class of the day) 
+#schedule_list["rowspans"] = rowspans (This isn't really needed for general use, just calculations)
+#schedule_list["name"] = Class name 
+#schedule_list["time"] = Class time
+#schedule_list["location"] = Class location
+#schedule_list["time2"] = Class time (formatted diffrently)
+#schedule_list["type"] = Type of schedule (1 for class and 0 for break)
 #Example:
-#schedule_list[2][3] = Class times on day 3 (Thursday) 
-#schedule_list[1][2][4] = Class name of the fifth class on day 2 (Wednesday)
+#schedule_list["time"][3] = Class times on day 3 (Thursday) 
+#schedule_list["name"][2][4] = Class name of the fifth class on day 2 (Wednesday)
 
 def sortSchedule(full,schedule):
     rowspans = getRowspans(full)
-    schedule_list = [ [ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ],[ [],[],[],[],[] ] ] #Stores everything in an easily accesible list
+    schedule_list = {
+					"rowspans":[ [],[],[],[],[] ],
+					"name"    :[ [],[],[],[],[] ],
+					"time"    :[ [],[],[],[],[] ],
+					"time2"   :[ [],[],[],[],[] ],		
+					"location":[ [],[],[],[],[] ],
+					"type"    :[ [],[],[],[],[] ]
+					}
 
     for a in range(len(rowspans)):
         summa = [ [],[],[],[],[]  ]
         for b in range(5):
-            summa[b].append(sum(schedule_list[0][b]))
-        schedule_list[0][summa.index(min(summa))].append(int(rowspans[a]))
-        schedule_list[5][summa.index(min(summa))].append(int(groups[a]))
+            summa[b].append(sum(schedule_list["rowspans"][b]))
+        schedule_list["rowspans"][summa.index(min(summa))].append(int(rowspans[a]))
+        schedule_list["type"][summa.index(min(summa))].append(int(groups[a]))
         if groups[a]: #If there's a class 
-            schedule_list[1][summa.index(min(summa))].append(schedule[0][0])
-            schedule_list[2][summa.index(min(summa))].append(schedule[0][1])
-            schedule_list[3][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
+            schedule_list["name"][summa.index(min(summa))].append(schedule[0][0])
+            schedule_list["time"][summa.index(min(summa))].append(schedule[0][1])
+            schedule_list["location"][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
             schedule.pop(0) #Removes the first item so the next item can be used, better than keeping count on what number you're on
 
     for c in range(5): #Time formatted diffrently, useful for other scripts
-        for d in range(len(schedule_list[2][c])):
-            sep = schedule_list[2][c][d].find('-')
-            schedule_list[4][c].append(schedule_list[2][c][d][:sep])
-            schedule_list[4][c].append(schedule_list[2][c][d][sep+1:])
+        for d in range(len(schedule_list["time"][c])):
+            sep = schedule_list["time"][c][d].find('-')
+            schedule_list["time2"][c].append(schedule_list["time"][c][d][:sep])
+            schedule_list["time2"][c].append(schedule_list["time"][c][d][sep+1:])
             
     return(schedule_list)
 
 schedule_list = sortSchedule(full,schedule)
 if lunchtoggle: #adds lunch to the schedule, based on break time
     for x in range(5):
-        for y in range(len(schedule_list[5][x])):
-            if not schedule_list[5][x][y] and y != 0 and int(schedule_list[0][x][y]) > (lunchtime/5):
-                count = schedule_list[5][x][:y].count(1) #Gets the amout of classes before lunch, for inserting lunch at the correct place
-                schedule_list[1][x].insert(count,'Lunch')
-                schedule_list[2][x].insert(count,'')
-                schedule_list[3][x].insert(count,'')
-                schedule_list[4][x].insert(int(count*2),schedule_list[4][x][int(count*2)-1])
-                schedule_list[4][x].insert(int(count*2)+1,schedule_list[4][x][int(count*2)+1])
+        for y in range(len(schedule_list["type"][x])):
+            if not schedule_list["type"][x][y] and y != 0 and int(schedule_list["rowspans"][x][y]) > (lunchtime/5):
+                count = schedule_list["type"][x][:y].count(1) #Gets the amout of classes before lunch, for inserting lunch at the correct place
+                schedule_list["name"][x].insert(count,'Lunch')
+                schedule_list["time"][x].insert(count,'')
+                schedule_list["location"][x].insert(count,'')
+                schedule_list["time2"][x].insert(int(count*2),schedule_list["time2"][x][int(count*2)-1])
+                schedule_list["time2"][x].insert(int(count*2)+1,schedule_list["time2"][x][int(count*2)+1])
                 break #one lunch/day
 
 prefix = ''
@@ -293,29 +304,29 @@ for d in range(len(sys.argv)):
     if sys.argv[d] == '--discord':
         prefix = '**'
     if sys.argv[d] == '--tests':
-        if len(tests[0]) == 0:
+        if len(tests["day"]) == 0:
             if english:
                 print('No tests upcoming')
             else:
                 print('Inga prov eller läxor')
         else:
-            for a in range(len(tests[0])):
-                if tests[3][a] != tests[3][a-1]:
-                    print(prefix+'Vecka: '+prefix+str(tests[3][a]))
-                print(prefix+days[tests[0][a]]+prefix+'\n'+tests[1][a]+': '+tests[2][a])
+            for a in range(len(tests["day"])):
+                if tests["week"][a] != tests["week"][a-1]:
+                    print(prefix+'Vecka: '+prefix+str(tests["week"][a]))
+                print(prefix+days[tests["day"][a]]+prefix+'\n'+tests["label"][a]+': '+tests["title"][a])
     if (len(sys.argv[d]) == 1 and sys.argv[d] in '01234' and sys.argv[d-1] != '--lunchweek' and sys.argv[d-1] != '--scheduleweek') or sys.argv[d] == '--day':
         if sys.argv[d] == '--day':
             day = (int(strftime("%w", gmtime()))-1)
         else:day = int(sys.argv[d])
         if api:
             print('{')
-        for e in range(len(schedule_list[1][day])):
+        for e in range(len(schedule_list["name"][day])):
             if api:
                 print(str(e) + '="',end='')
-            print(schedule_list[1][day][e],end='') #end='' is to stop printing a new line
-            if schedule_list[1][day][e] != 'Lunch':
-                print(' ' + prefix+schedule_list[2][day][e]+prefix + ' ',end='')
-            print(schedule_list[3][day][e],end='') #[:-2] to remove \n\r, remove this if it only partly prints classroom names
+            print(schedule_list["name"][day][e],end='') #end='' is to stop printing a new line
+            if schedule_list["name"][day][e] != 'Lunch':
+                print(' ' + prefix+schedule_list["time"][day][e]+prefix + ' ',end='')
+            print(schedule_list["location"][day][e],end='') #[:-2] to remove \n\r, remove this if it only partly prints classroom names
             if api:
                 print('"')
             else:print('')
