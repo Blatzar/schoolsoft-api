@@ -1,34 +1,39 @@
 #!/usr/bin/env python3
 from bs4 import BeautifulSoup
-import requests, re, os, sys
-from time import gmtime, strftime 
-from getpass import getpass #password
+import request
+import re
+import os
+import sys
+from time import gmtime, strftime
+from getpass import getpass  #password
 import argparse
 
 parser = argparse.ArgumentParser()
 
-lunchtime = 40 #Minimum lunch time (minutes), used to calculate where the lunch is
-lunchtoggle = True#False if you don't want to print the lunch
-english = False #Language of the days
+lunchtime = 40  #Minimum lunch time (minutes), used to calculate where the lunch is
+lunchtoggle = True  #False if you don't want to print the lunch
+english = False  #Language of the days
 
-if english:days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-else:days = ['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag']
+if english:
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+else:
+    days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag']
 
-parser.add_argument( '--username','-u', default= '', help='SchoolSoft username' ) 
-parser.add_argument( '--password','-p', default= '', help='SchoolSoft password' ) 
-parser.add_argument( '--school', '-i', default='nacka', help='SchoolSoft school, if the URL is "sms13.schoolsoft.se/nacka/", the school name is "nacka"' ) 
-parser.add_argument( '--ask','-a', action='store_const', const=True, help='Asks for the password (if you don\'t want to store the password in the shell history)' ) 
+parser.add_argument('--username', '-u', default='', help='SchoolSoft username')
+parser.add_argument('--password', '-p', default='', help='SchoolSoft password')
+parser.add_argument('--school', '-i', default='nacka', help='SchoolSoft school, if the URL is "sms13.schoolsoft.se/nacka/", the school name is "nacka"')
+parser.add_argument('--ask', '-a', action='store_const', const=True, help='Asks for the password (if you don\'t want to store the password in the shell history)')
 
-parser.add_argument( '--schedule','-s', default=[],choices=['0','1','2','3','4','today'], help='The days to get the schedule, use "today" to get current day')
-parser.add_argument( '--raw-schedule','-rs', action='store_const', const=True, help='Print the raw schedule (useful for scripts)' ) 
-parser.add_argument( '--scheduleweek','-sw', default= 0, help='Specify the week to get the schedule (default: current week)' ) 
+parser.add_argument('--schedule', '-s', default=[], choices=['0', '1', '2', '3', '4', 'today'], help='The days to get the schedule, use "today" to get current day')
+parser.add_argument('--raw-schedule', '-rs', action='store_const', const=True, help='Print the raw schedule (useful for scripts)')
+parser.add_argument('--scheduleweek', '-sw', default=0, help='Specify the week to get the schedule (default: current week)')
 
-parser.add_argument( '--lunch','-l', action='store_const', const=True, help='Print the lunch' ) 
-parser.add_argument( '--raw-lunch','-rl', action='store_const', const=True, help='Print the raw lunch (useful for scripts)' ) 
-parser.add_argument( '--lunchweek','-lw',default= -1, help='Specify the week to get the lunch (default: current week)' ) 
+parser.add_argument('--lunch', '-l', action='store_const', const=True, help='Print the lunch')
+parser.add_argument('--raw-lunch', '-rl', action='store_const', const=True, help='Print the raw lunch (useful for scripts)')
+parser.add_argument('--lunchweek', '-lw', default=-1, help='Specify the week to get the lunch (default: current week)')
 
-parser.add_argument( '--tests','-t', action='store_const', const=True, help='Print the tests' ) 
-parser.add_argument( '--discord','-d', action='store_const', const="**", default="", help='Use discord formatting (useful for discord bots)' ) 
+parser.add_argument('--tests', '-t', action='store_const', const=True, help='Print the tests')
+parser.add_argument('--discord', '-d', action='store_const', const="**", default="", help='Use discord formatting (useful for discord bots)')
 args = parser.parse_args()
 
 username = args.username
@@ -38,15 +43,17 @@ lunchweek = args.lunchweek
 scheduleweek = args.scheduleweek
 
 try:
-    import testkeys #To import my own login details, you can remove this
+    import testkeys  #To import my own login details, you can remove this
     testkeys = testkeys.school()
     school = testkeys.school
     username = testkeys.username
     password = testkeys.password
-except ImportError:pass
+except ImportError:
+    pass
 
 
-if args.ask:password = getpass()
+if args.ask:
+    password = getpass()
 
 class AuthFailure(Exception):
     """In case API authentication fails"""
@@ -124,9 +131,12 @@ class SchoolSoft(object):
             food_info = div.get_text(separator=u"<br/>").split(u"<br/>")
             lunch_menu.append(food_info)
         if len(lunch_menu) == 0:
-                if english:return([['not available'],['not available'],['not available'],['not available'],['not available']])
-                else:return([['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt']])
-        else:return(lunch_menu)
+                if english:
+                    return([['not available'],['not available'],['not available'],['not available'],['not available']])
+                else:
+                    return([['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt'],['Inte tillgängligt']])
+        else:
+            return lunch_menu
 
     def fetch_schedule(self,scheduleweek=0):
         """
@@ -150,14 +160,14 @@ class SchoolSoft(object):
         tests = str(BeautifulSoup(tests.text, "html.parser"))
         return(tests)
 
-api = SchoolSoft(school, username, password) #__init__
+api = SchoolSoft(school, username, password)  #__init__
 
 
-lunch = api.fetch_lunch_menu(lunchweek) #Sorted in an array
-for a in range(5): #This loop is to make sure there's always a veg option
-	if len(lunch[a]) == 1:
-		lunch[a].append(lunch[a][0])
-schedule,full = api.fetch_schedule(scheduleweek) #schedule
+lunch = api.fetch_lunch_menu(lunchweek)  #Sorted in an array
+for a in range(5):  #This loop is to make sure there's always a veg option
+    if len(lunch[a]) == 1:
+        lunch[a].append(lunch[a][0])
+schedule,full = api.fetch_schedule(scheduleweek)  #schedule
 prov = api.fetch_tests()
 
 #in order to get a list of all info on all days, every day has a col-5-days separator
@@ -172,11 +182,11 @@ weekinfo = [ [],[]   ]
 #weekinfo [0] = col-5-days number of the weekstart
 #weekinfo [1] = weeknumber
 tests = {
-		"day":[],
-		"label":[],
-		"title":[],
-		"week":[]
-		} 
+        "day":[],
+        "label":[],
+        "title":[],
+        "week":[]
+        } 
 #tests["day"] = day of the test, starting from 0
 #tests["label"] = label of the test, eg Test, Homework
 #tests["title"] = Title of the test and more info
@@ -186,9 +196,9 @@ tests = {
 for b in range(len(mid)):
         titleindex = 0
         labelindex = 0
-        for a in range(mid[b].count('<label>')): #multiple tests on the same day
+        for a in range(mid[b].count('<label>')):  #multiple tests on the same day
             label = ((re.search('<label>[\W\w]*?<\/label>',mid[b][labelindex:]))).group(0).strip('<label>').strip('</label>')  #gets the label (Test, Homework, etc) 
-            day = int(str(re.search('day=[0-6]',mid[b]).group(0)).strip('day=')) #day of the test
+            day = int(str(re.search('day=[0-6]',mid[b]).group(0)).strip('day='))  #day of the test
             tests["day"].append(day)
             tests["label"].append(label)
             tests["week"].append(round((b/6)-0.5)+weekinfo[1][0])
@@ -197,7 +207,7 @@ for b in range(len(mid)):
                 tests["title"].append(title)
             titleindex = mid[b][titleindex:].find('title="') + titleindex + 1 #Finds the location of the title
             labelindex = mid[b][labelindex:].find('<label>') + labelindex + 1
-        if 'valign="top">v' in mid[b]: #gets the week
+        if 'valign="top">v' in mid[b]:  #gets the week
             start = (mid[b]).find('valign="top"')+13 #could be done with regex, but this already works
             stop = (mid[b])[start:].find('<')+start
             week = int((mid[b])[start+1:stop])
@@ -249,13 +259,13 @@ def getRowspans(full):
 def sortSchedule(full,schedule):
     rowspans = getRowspans(full)
     schedule_list = {
-					"rowspans":[ [],[],[],[],[] ],
-					"name"    :[ [],[],[],[],[] ],
-					"time"    :[ [],[],[],[],[] ],
-					"time2"   :[ [],[],[],[],[] ],		
-					"location":[ [],[],[],[],[] ],
-					"type"    :[ [],[],[],[],[] ]
-					}
+                    "rowspans":[ [],[],[],[],[] ],
+                    "name"    :[ [],[],[],[],[] ],
+                    "time"    :[ [],[],[],[],[] ],
+                    "time2"   :[ [],[],[],[],[] ],      
+                    "location":[ [],[],[],[],[] ],
+                    "type"    :[ [],[],[],[],[] ]
+                    }
 
     for a in range(len(rowspans)):
         summa = [ [],[],[],[],[]  ]
@@ -263,7 +273,7 @@ def sortSchedule(full,schedule):
             summa[b].append(sum(schedule_list["rowspans"][b]))
         schedule_list["rowspans"][summa.index(min(summa))].append(int(rowspans[a]))
         schedule_list["type"][summa.index(min(summa))].append(int(groups[a]))
-        if groups[a]: #If there's a class 
+        if groups[a]:  #If there's a class 
             schedule_list["name"][summa.index(min(summa))].append(schedule[0][0])
             schedule_list["time"][summa.index(min(summa))].append(schedule[0][1])
             schedule_list["location"][summa.index(min(summa))].append((schedule[0][2]).replace('\r\n',''))
@@ -278,7 +288,7 @@ def sortSchedule(full,schedule):
     return(schedule_list)
 
 schedule_list = sortSchedule(full,schedule)
-if lunchtoggle: #adds lunch to the schedule, based on break time
+if lunchtoggle:  #adds lunch to the schedule, based on break time
     for x in range(5):
         for y in range(len(schedule_list["type"][x])):
             if not schedule_list["type"][x][y] and y != 0 and int(schedule_list["rowspans"][x][y]) > (lunchtime/5):
@@ -301,13 +311,17 @@ if args.lunch:
         if len(lunch[f]) > 1:
             print(lunch[f][1]+'\n')
 
-if args.raw_schedule:print(schedule_list)
-if args.raw_lunch:print(lunch)    
+if args.raw_schedule:
+    print(schedule_list)
+if args.raw_lunch:
+    print(lunch)    
 
 if args.tests:
     if len(tests["day"]) == 0:
-        if english:print('No tests upcoming')
-        else:print('Inga prov eller läxor')
+        if english:
+            print('No tests upcoming')
+        else:
+            print('Inga prov eller läxor')
     else:
         for a in range(len(tests["day"])):
             if tests["week"][a] != tests["week"][a-1]:
@@ -315,12 +329,15 @@ if args.tests:
             print(prefix+days[tests["day"][a]]+prefix+'\n'+tests["label"][a]+': '+tests["title"][a])
 
 for a in args.schedule:
-    if a == 'today':day = (int(strftime("%w", gmtime()))-1)
-    else:day = int(a)
+    if a == 'today':
+        day = (int(strftime("%w", gmtime()))-1)
+    else:
+        day = int(a)
     
     for e in range(len(schedule_list["name"][day])):
-        print(schedule_list["name"][day][e],end='') #end='' is to stop printing a new line
-        if schedule_list["name"][day][e] == 'Lunch':print('')
+        print(schedule_list["name"][day][e],end='')  #end='' is to stop printing a new line
+        if schedule_list["name"][day][e] == 'Lunch':
+            print('')
         else:
-            print(' ' + prefix+schedule_list["time"][day][e]+prefix + ' ',end='')
-            print(schedule_list["location"][day][e]) #[:-2] to remove \n\r, remove this if it only partly prints classroom names
+            print(' ' + prefix + schedule_list["time"][day][e] + prefix + ' ', end='')
+            print(schedule_list["location"][day][e])  #[:-2] to remove \n\r, remove this if it only partly prints classroom names
