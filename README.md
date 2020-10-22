@@ -17,9 +17,13 @@ To get the schedule for day 2 (Wednesday)
 To get the upcoming tests
 
 <h2>How does the schedule sorting work?</h2>
-All the blocks in the scheme have a rowspan (basically size). What I did was place the classes from schoolsoft.py (sorted by time) in the day with the lowest rowspan.
-For example if the rowspans of the time between 8:00 and the first class are: [22,24,7,18,16] you can deduct that the first class (by time) is going to be on Wednesday. Repeating this you can eventually get the whole scheme.
-It's reccomended that you look at the html and rowspan on schoolsoft to understand better.
+
+The schedule HTML needs more maths than expected to sort all schedule blocks in separate days. Block positions are determined by the position of the block before. 
+
+All the blocks in the schedule have a rowspan (height). Repeatedly appending the next block to the day with the lowest amount of rowspans you can build a sorted schedule. 
+For example if the rowspans of the time between 8:00 and the first class are: `[22, 24, 7, 18, 16]` you can deduct that the first class (by time) is going to be on Wednesday. Repeating this you can eventually get the whole schedule. 
+
+Only this doesn't work on schedules with multiple lessons simultaneously, therefore the width also has to be accounted for in calculations, only adding the block's rowspan once the horizontal schedule is filled. 
 
 <h2>Credits</h2>
 The schoolsoft login was copied from this python script
