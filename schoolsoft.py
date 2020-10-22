@@ -165,10 +165,13 @@ class SchoolSoft(object):
                     if rowspans == 0:
                         days.append(Day(element_no - 1, colspan))
                     else:
+                        # Selects the least filled day.
                         day = sorted(days, key=lambda Day: min(Day.small_rowspans))[0]
+                        # Selects where horizontally the element is located.
                         indx = day.small_rowspans.index(min(day.small_rowspans))
                         day.schedule.append(Block(element, day.small_rowspans[indx], is_break))
 
+                        # Appends the rowspan of the block to selected columns.
                         for num, small_rowspan in enumerate(day.small_rowspans[indx:indx + colspan]):
                             day.small_rowspans[indx + num] += rowspan
 
@@ -244,7 +247,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     lunchtime = 40  # Minimum lunch time (minutes), used to calculate where the lunch is
-    lunchtoggle = True  # False if you don't want to print the lunch
+    lunchtoggle = False  # False if you don't want to print the lunch
 
     day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
